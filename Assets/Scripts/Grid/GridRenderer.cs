@@ -1,27 +1,34 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Grid
 {
     public class GridRenderer : MonoBehaviour
     {
-        private int _width = 8;
-        private int _height = 8;
-        private float _cellSize = 1f;
-        private float _lineWidth = 0.1f;
-        private Color _lineColor = Color.white;
+        [SerializeField] private float cameraPadding = 4f;
         [SerializeField] private Material gridMaterial;
+        [SerializeField] private Edge verticalEdgePrefab;
+        [SerializeField] private Edge horizontalEdgePrefab;
+        private int _width;
+        private int _height;
+        private float _cellSize;
+        private float _lineWidth = .25f;
+        private Color _blockColor = Color.white;
+        private List<Edge> _edgeList;
 
-
-        public void InitializeGridRenderer(int width, int height, float cellSize, float lineWidth, Color gridColor)
+        public List<Edge> InitializeGridRenderer(int width, int height, float cellSize, Color gridColor)
         {
             _width = width;
             _height = height;
             _cellSize = cellSize;
-            _lineWidth = lineWidth;
-            _lineColor = gridColor;
-            CreateGrid();
+            _blockColor = gridColor;
+            var totalEdgeCount = 2 * (width * height) + width + height;
+            _edgeList = new List<Edge>(totalEdgeCount);
+            // CreateGrid();
+            PrepareGrid();
             SetupCamera();
+            return _edgeList;
         }
 
         private void CreateGrid()
@@ -55,7 +62,7 @@ namespace Grid
             }
 
             // Yatay çizgiler
-            for (int y = 0; y <= _width; y++)
+            for (int y = 0; y <= _height; y++)
             {
                 vertices.Add(new Vector3(0, y * _cellSize - _lineWidth / 2, 0)); // sol alt
                 vertices.Add(new Vector3(_width * _cellSize, y * _cellSize - _lineWidth / 2, 0)); // sağ alt
@@ -67,9 +74,9 @@ namespace Grid
                 triangles.Add(vCount - 2); // sol üst
                 triangles.Add(vCount - 3); // sağ alt
 
-                triangles.Add(vCount - 2); // sol üst
-                triangles.Add(vCount - 1); // sağ üst
-                triangles.Add(vCount - 3); // sağ alt
+                triangles.Add(vCount - 2); // sağ alt
+                triangles.Add(vCount - 1); // sol üst
+                triangles.Add(vCount - 3); // sağ üst
 
                 uv.Add(new Vector2(0, 0));
                 uv.Add(new Vector2(1, 0));
@@ -86,15 +93,42 @@ namespace Grid
             var meshRenderer = gameObject.AddComponent<MeshRenderer>();
 
             meshFilter.mesh = mesh;
-            gridMaterial.SetColor("_Color", _lineColor);
+            gridMaterial.SetColor("_BaseColor", _blockColor);
             meshRenderer.material = gridMaterial;
             gameObject.isStatic = true;
+        }
+
+        private void PrepareGrid()
+        {
+            for (int y = 0; y <= _height; y++)
+            {
+                for (int x = 0; x < _width; x++)
+                {
+                    CreateEdge(horizontalEdgePrefab, x, y, EdgeOrientation.Horizontal);
+                }
+            }
+
+            for (int y = 0; y < _height; y++)
+            {
+                for (int x = 0; x <= _width; x++)
+                {
+                    CreateEdge(verticalEdgePrefab, x, y, EdgeOrientation.Vertical);
+                }
+            }
+        }
+
+        private void CreateEdge(Edge edgePrefab, int x, int y, EdgeOrientation orientation)
+        {
+            Edge edge = Instantiate(edgePrefab, transform);
+            edge.transform.position = new Vector3(x * _cellSize, y * _cellSize, 0);
+            edge.InitializeEdge(_blockColor, orientation);
+            _edgeList.Add(edge);
         }
 
         void SetupCamera()
         {
             float zOffset = -10f;
-            float padding = 1f;
+
 
             Vector3 centerPoint = new Vector3(
                 _width * _cellSize / 2f,
@@ -107,8 +141,8 @@ namespace Grid
             float gridHeight = _height * _cellSize;
             float gridWidth = _width * _cellSize;
 
-            float verticalSize = (gridHeight / 2f) + padding;
-            float horizontalSize = (gridWidth / 2f + padding) / Camera.main.aspect;
+            float verticalSize = (gridHeight / 2f) + cameraPadding;
+            float horizontalSize = (gridWidth / 2f + cameraPadding) / Camera.main.aspect;
 
             Camera.main.orthographicSize = Mathf.Max(verticalSize, horizontalSize);
         }
