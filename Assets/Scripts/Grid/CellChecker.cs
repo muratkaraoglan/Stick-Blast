@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using DG.Tweening;
+using Pooling;
 using UnityEngine;
 
 namespace Grid
@@ -7,11 +9,13 @@ namespace Grid
     {
         private readonly float _cellSize;
         private Dictionary<Vector3Int, Edge> _edgeMap;
-
-        public CellChecker(float cellSize, Dictionary<Vector3Int, Edge> edgeMap)
+        private readonly OccupiedCellPool _occupiedCellPool;
+        private HashSet<Vector3Int> _occupiedCells = new();
+        public CellChecker(float cellSize, Dictionary<Vector3Int, Edge> edgeMap, OccupiedCellPool pool)
         {
             _cellSize = cellSize;
             _edgeMap = edgeMap;
+            _occupiedCellPool = pool;
         }
 
         public void CheckCell(Vector3 edgePosition, EdgeOrientation edgeOrientation)
@@ -25,7 +29,7 @@ namespace Grid
                 CheckVerticalCells(edgePosition);
             }
         }
-        
+
         private Vector3Int GetNeighborPosition(Vector3 edgePosition, Vector3 direction)
         {
             return Vector3Int.FloorToInt(edgePosition + direction * _cellSize);
@@ -55,16 +59,14 @@ namespace Grid
                 && IsNeighborOccupied(rightDownNeighbor)
                )
             {
-                GameObject.CreatePrimitive(PrimitiveType.Sphere).transform.position =
-                    edgePosition + _cellSize * 0.5f * Vector3.right;
+                InstantiateCell(edgePosition + _cellSize * 0.5f * Vector3.right);
             }
 
             if (IsNeighborOccupied(leftNeighbor)
                 && IsNeighborOccupied(leftUpNeighbor)
                 && IsNeighborOccupied(leftDownNeighbor))
             {
-                GameObject.CreatePrimitive(PrimitiveType.Cube).transform.position =
-                    edgePosition + _cellSize * 0.5f * Vector3.left;
+                InstantiateCell(edgePosition + _cellSize * 0.5f * Vector3.left);
             }
         }
 
@@ -82,17 +84,22 @@ namespace Grid
                 && IsNeighborOccupied(upLeftNeighbor)
                )
             {
-                GameObject.CreatePrimitive(PrimitiveType.Cylinder).transform.position =
-                    edgePosition + _cellSize * 0.5f * Vector3.up;
+                InstantiateCell(edgePosition + _cellSize * 0.5f * Vector3.up);
             }
 
             if (IsNeighborOccupied(downNeighbor)
                 && IsNeighborOccupied(downRightNeighbor)
                 && IsNeighborOccupied(downLeftNeighbor))
             {
-                GameObject.CreatePrimitive(PrimitiveType.Capsule).transform.position =
-                    edgePosition + _cellSize * 0.5f * Vector3.down;
+                InstantiateCell(edgePosition + _cellSize * 0.5f * Vector3.down);
             }
+        }
+
+        private void InstantiateCell(Vector3 position)
+        {
+            var go = _occupiedCellPool.Pool.Get();
+            go.transform.position = position;
+            go.transform.DOScale(20f, .15f);
         }
     }
 }

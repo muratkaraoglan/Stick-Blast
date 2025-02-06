@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Placable;
+using Pooling;
 using UnityEngine;
 using Utils;
 
@@ -11,19 +12,18 @@ namespace Grid
     {
         [SerializeField] private GridRenderer gridRenderer;
         [SerializeField] private Node nodePrefab;
-
+        [SerializeField] private OccupiedCellPool occupiedCellPool;
         [Header("Grid Settings")] [SerializeField]
         private int width = 6;
 
         [SerializeField] private int height = 6;
-        [SerializeField] private Color gridColor = Color.white;
+        [SerializeField] private Color gridColor;
 
         private readonly float _cellSize = 3f;
         private Camera _mainCamera;
         private Dictionary<Vector3Int, Edge> _edgeMap = new();
         private Dictionary<Vector3, Node> _nodeMap = new();
         private HashSet<Vector3Int> _highlightedEdges = new();
-        private HashSet<Vector3Int> _occupiedCells = new();
         private CellChecker _cellChecker;
         private ShapePlacementManager _shapePlacementManager;
 
@@ -53,7 +53,7 @@ namespace Grid
 
         private void InitializeHelpers()
         {
-            _cellChecker = new CellChecker(_cellSize, _edgeMap);
+            _cellChecker = new CellChecker(_cellSize, _edgeMap,occupiedCellPool);
             _shapePlacementManager = new ShapePlacementManager(_edgeMap, _highlightedEdges, _mainCamera, _cellSize);
         }
 
