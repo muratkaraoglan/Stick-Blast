@@ -11,13 +11,15 @@ namespace Placable
     public class PlaceableShapeController : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler
     {
         [SerializeField] private List<PlaceableShapeEdgeData> placeableShapeEdgeDatas;
-        [SerializeField] private TextMeshProUGUI text;
-
+        private bool _canPlace;
+        private readonly float _targetY = 150f;
+        private readonly float _defaultScale = .2f;
+        private readonly float _targetScale = .25f;
+        
         public void OnPointerDown(PointerEventData eventData)
         {
-            print("OnPointerDown");
-            Vector3 targetPosition = transform.position + Vector3.up * 150f;
-            Vector3 targetScale = Vector3.one * .2f;
+            Vector3 targetPosition = transform.position + Vector3.up * _targetY;
+            Vector3 targetScale = Vector3.one * _targetScale;
             transform.position = targetPosition;
             transform.localScale = targetScale;
         }
@@ -26,15 +28,21 @@ namespace Placable
         {
             Vector2 delta = eventData.delta;
             transform.position += new Vector3(delta.x, delta.y);
-            text.SetText(Camera.main.ScreenToWorldPoint(transform.position) + "\n" +
-                         Vector3Int.RoundToInt(Camera.main.ScreenToWorldPoint(transform.position)).ToString());
-            GridManager.Instance.CheckPlaceArea(placeableShapeEdgeDatas);
+            _canPlace = GridManager.Instance.CanPlaceShape(placeableShapeEdgeDatas);
         }
 
         public void OnPointerUp(PointerEventData eventData)
         {
-            transform.localPosition = Vector3.zero;
-            transform.localScale = Vector3.one * .15f;
+            if (_canPlace)
+            {
+                GridManager.Instance.PlaceShape();
+                gameObject.SetActive(false);
+            }
+            else
+            {
+                transform.localPosition = Vector3.zero;
+                transform.localScale = Vector3.one * _defaultScale;
+            }
         }
     }
 

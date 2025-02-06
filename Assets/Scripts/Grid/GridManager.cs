@@ -17,17 +17,23 @@ namespace Grid
 
         [SerializeField] private int height = 6;
         [SerializeField] private Color gridColor = Color.white;
-        private readonly float _cellSize = 3f;
 
+        private readonly float _cellSize = 3f;
+        private Camera _mainCamera;
         private Dictionary<Vector3Int, Edge> _edgeMap = new();
-        [SerializeField] private List<Vector3Int> edgePoints = new();
+        private Dictionary<Vector3, Node> _nodeMap = new();
+        private HashSet<Vector3Int> _highlightedEdges = new();
+        private HashSet<Vector3Int> _occupiedCells = new();
+        private CellChecker _cellChecker;
+        private ShapePlacementManager _shapePlacementManager;
 
         private void Start()
         {
+            _mainCamera = Camera.main;
             var edges = gridRenderer.InitializeGridRenderer(width, height, _cellSize, gridColor);
             InitializeNodes();
             _edgeMap = edges.ToDictionary(e => e.GetEdgePositionInt(), e => e);
-            edgePoints = _edgeMap.Keys.ToList();
+            InitializeHelpers();
         }
 
         private void InitializeNodes()
@@ -37,77 +43,63 @@ namespace Grid
                 for (int y = 0; y <= height; y++)
                 {
                     var node = Instantiate(nodePrefab, transform);
-
-                    node.transform.localPosition = new Vector3(x * _cellSize, y * _cellSize, 0);
+                    var position = new Vector3(x * _cellSize, y * _cellSize, 0);
+                    node.transform.localPosition = position;
                     node.SetSpriteColor(gridColor);
+                    _nodeMap.Add(Vector3Int.FloorToInt(position), node);
                 }
             }
         }
 
-        public void CheckPlaceArea(List<PlaceableShapeEdgeData> placedEdges)
+        private void InitializeHelpers()
         {
-            for (int i = 0; i < placedEdges.Count; i++)
+            _cellChecker = new CellChecker(_cellSize, _edgeMap);
+            _shapePlacementManager = new ShapePlacementManager(_edgeMap, _highlightedEdges, _mainCamera, _cellSize);
+        }
+
+        private void FindFullyOccupiedCells()
+        {
+            foreach (var key in _highlightedEdges)
             {
-                var data = placedEdges[i];
-                var worldPosition = Camera.main.ScreenToWorldPoint(data.transform.position);
-                if (data.orientation == EdgeOrientation.Vertical)
+                var edge = _edgeMap[key];
+                var edgePosition = edge.GetEdgePosition();
+                _cellChecker.CheckCell(edgePosition, edge.Orientation);
+            }
+        }
+        
+        public bool CanPlaceShape(List<PlaceableShapeEdgeData> placeableEdges)
+        {
+            return _shapePlacementManager.TryPlaceShape(placeableEdges);
+        }
+        
+        public void PlaceShape()
+        {
+            foreach (var key in _highlightedEdges)
+            {
+                var edge = _edgeMap[key];
+                edge.SetEdgeIsOccupied(true);
+                edge.ChangeHighlightAlpha(1f);
+                Vector3Int nodeOne = Vector3Int.zero, nodeTwo = Vector3Int.zero;
+
+                if (edge.Orientation == EdgeOrientation.Vertical)
                 {
-                    float snappedX = Mathf.Round(worldPosition.x / _cellSize) * _cellSize;
-                    float normalizedY = worldPosition.y - 1f;//dikey eksendeki baslangic degeri 1 oldugu icin 1 cıkarip hesaplamalara 0 ile basliyor.
-                    float snappedY = Mathf.Round(normalizedY / _cellSize) * _cellSize + 1f;
-
-                    int x = Mathf.RoundToInt(snappedX);
-                    int y = Mathf.RoundToInt(snappedY);
-                    Vector3Int edgePosition = new Vector3Int(x, y, 0);
-
-                    edgePosition.z = 0;
-                    floorPoint = edgePosition;
-                    if (_edgeMap.TryGetValue(edgePosition, out Edge edge) && edge.Orientation == data.orientation)
-                    {
-                        point = edge.GetEdgePosition();
-                    }
-                    else
-                    {
-                        point = Vector3.zero;
-                    }
+                    nodeOne = Vector3Int.FloorToInt(edge.GetEdgePosition() + _cellSize * .5f * Vector3.up);
+                    nodeTwo = Vector3Int.FloorToInt(edge.GetEdgePosition() + _cellSize * .5f * Vector3.down);
                 }
                 else
                 {
-                    float normalizedX = worldPosition.x - 1f;//yatay eksendeki baslangic degeri 1 oldugu icin 1 cıkarip hesaplamalara 0 ile basliyor.
-                    float snappedX = Mathf.Round(normalizedX / _cellSize) * _cellSize + 1;
-                    float snappedY = Mathf.Round(worldPosition.y / _cellSize) * _cellSize;
-                    
-                    int x = Mathf.RoundToInt(snappedX);
-                    int y = Mathf.RoundToInt(snappedY);
-                    Vector3Int edgePosition = new Vector3Int(x, y, 0);
-
-                    edgePosition.z = 0;
-                    if (_edgeMap.TryGetValue(edgePosition, out Edge edge) && edge.Orientation == data.orientation)
-                    {
-                        point = edge.GetEdgePosition();
-                    }
-                    else
-                    {
-                        point = Vector3.zero;
-                    }
-
+                    nodeOne = Vector3Int.FloorToInt(edge.GetEdgePosition() + _cellSize * .5f * Vector3.right);
+                    nodeTwo = Vector3Int.FloorToInt(edge.GetEdgePosition() + _cellSize * .5f * Vector3.left);
                 }
+
+                _nodeMap[nodeOne].SetSpriteColor(Color.white);
+                _nodeMap[nodeTwo].SetSpriteColor(Color.white);
             }
-        }
 
-        [SerializeField] private bool draw;
-        [SerializeField] private float drawRadius = .2f;
-        private Vector3 point;
-        private Vector3 floorPoint;
-
-        private void OnDrawGizmos()
-        {
-            if (!draw) return;
-            Gizmos.color = Color.red;
-            Gizmos.DrawSphere(floorPoint, drawRadius);
-            Gizmos.color = Color.green;
-            Gizmos.DrawSphere(point, drawRadius);
+            FindFullyOccupiedCells();
+            _highlightedEdges.Clear();
         }
+        
     }
 
     public enum EdgeOrientation
