@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Placable;
@@ -92,6 +93,8 @@ namespace Grid
 
         public void PlaceShape()
         {
+            if (!_canPlace) return;
+            _canPlace = false;
             foreach (var key in _highlightedEdges)
             {
                 var edge = _edgeMap[key];
@@ -102,6 +105,15 @@ namespace Grid
 
             FindFullyOccupiedCells();
             _highlightedEdges.Clear();
+            StartCoroutine(DelayPlace());
+        }
+
+        private bool _canPlace = true;
+
+        private IEnumerator DelayPlace()
+        {
+            yield return new WaitForSeconds(.3f);
+            _canPlace = true;
         }
     }
 

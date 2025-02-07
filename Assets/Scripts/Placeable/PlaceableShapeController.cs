@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using DG.Tweening;
 using Grid;
+using Placeable;
+using Pooling;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -15,6 +17,14 @@ namespace Placable
         private readonly float _targetY = 150f;
         private readonly float _defaultScale = .2f;
         private readonly float _targetScale = .25f;
+        private ShapePool _shapePool;
+
+        private bool _isSelected;
+
+        public void Initialize(ShapePool shapePool)
+        {
+            _shapePool = shapePool;
+        }
         
         public void OnPointerDown(PointerEventData eventData)
         {
@@ -36,13 +46,15 @@ namespace Placable
             if (_canPlace)
             {
                 GridManager.Instance.PlaceShape();
-                gameObject.SetActive(false);
+                ShapesUIManager.Instance.OnShapeRelease(_shapePool, gameObject);
+                _canPlace = false;
             }
             else
             {
                 transform.localPosition = Vector3.zero;
-                transform.localScale = Vector3.one * _defaultScale;
             }
+
+            transform.localScale = Vector3.one * _defaultScale;
         }
     }
 

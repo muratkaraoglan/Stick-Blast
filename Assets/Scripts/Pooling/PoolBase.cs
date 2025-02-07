@@ -37,7 +37,7 @@ namespace Pooling
         protected virtual void OnObjectReleased(GameObject obj)
         {
             obj.SetActive(false);
-            obj.transform.parent = transform;
+            obj.transform.SetParent(transform);
             obj.transform.localPosition = Vector3.zero;
             // other logics ...
         }

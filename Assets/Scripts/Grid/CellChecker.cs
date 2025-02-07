@@ -40,12 +40,16 @@ namespace Grid
             }
         }
 
+        private bool _isDestroying;
+
         public List<Vector3> DestroyCells()
         {
+            _isDestroying = true;
             var cellCenters = GetCellCenters();
             var edgeClearList = GetEdgeClearList(cellCenters);
 
             _destroyCells.Clear();
+            _isDestroying = false;
             return edgeClearList;
         }
 
@@ -166,10 +170,13 @@ namespace Grid
 
         private void SpawnCell(Vector3 position)
         {
+            if (_isDestroying) return;
+            var pos = Vector3Int.FloorToInt(position);
+            if(_occupiedCells.ContainsKey(pos)) return;
             var go = _occupiedCellPool.Pool.Get();
             go.transform.position = position;
             go.transform.DOScale(_cellScale, _cellScaleTimeInSeconds);
-            _occupiedCells.TryAdd(Vector3Int.FloorToInt(position), go);
+            _occupiedCells.TryAdd(pos, go);
             CheckFullRowColumn(Vector3Int.FloorToInt(position));
         }
 
