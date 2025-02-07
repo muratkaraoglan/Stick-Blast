@@ -31,6 +31,7 @@ namespace Grid
 
         private void Start()
         {
+            Application.targetFrameRate = 60;
             _mainCamera = Camera.main;
             var edges = gridRenderer.InitializeGridRenderer(width, height, _cellSize, gridColor);
             _edgeMap = edges.ToDictionary(e => e.GetEdgePositionInt(), e => e);

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Placable;
 using Pooling;
 using UnityEngine;
+using UnityEngine.Serialization;
 using Utils;
 using Random = UnityEngine.Random;
 
@@ -13,9 +14,11 @@ namespace Placeable
         [SerializeField] private List<ShapePool> shapePools;
         [SerializeField] private Transform[] slots = new Transform[3];
         private int _activeShapeCount;
+        [HideInInspector] public bool isShapeSelected;
 
         private void Start()
         {
+            Input.multiTouchEnabled = false;
             FillSlots();
         }
 

@@ -28,6 +28,8 @@ namespace Placable
         
         public void OnPointerDown(PointerEventData eventData)
         {
+            if( ShapesUIManager.Instance.isShapeSelected) return;
+            ShapesUIManager.Instance.isShapeSelected = true;
             Vector3 targetPosition = transform.position + Vector3.up * _targetY;
             Vector3 targetScale = Vector3.one * _targetScale;
             transform.position = targetPosition;
@@ -55,6 +57,7 @@ namespace Placable
             }
 
             transform.localScale = Vector3.one * _defaultScale;
+            ShapesUIManager.Instance.isShapeSelected = false;
         }
     }
 
