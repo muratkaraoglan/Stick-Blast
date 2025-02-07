@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using DG.Tweening;
 using Pooling;
 using UnityEngine;
+using System.Linq;
 
 namespace Grid
 {
@@ -10,10 +11,19 @@ namespace Grid
         private readonly float _cellSize;
         private Dictionary<Vector3Int, Edge> _edgeMap;
         private readonly OccupiedCellPool _occupiedCellPool;
-        private HashSet<Vector3Int> _occupiedCells = new();
-        public CellChecker(float cellSize, Dictionary<Vector3Int, Edge> edgeMap, OccupiedCellPool pool)
+        private readonly Dictionary<Vector3Int, GameObject> _occupiedCells = new();
+        private readonly float _cellScale = 20f;
+        private readonly float _cellScaleTimeInSeconds = .15f;
+        private HashSet<Vector3Int> _destroyCells = new();
+        private int _width;
+        private int _height;
+
+        public CellChecker(float cellSize, int width, int height, Dictionary<Vector3Int, Edge> edgeMap,
+            OccupiedCellPool pool)
         {
             _cellSize = cellSize;
+            _width = width;
+            _height = height;
             _edgeMap = edgeMap;
             _occupiedCellPool = pool;
         }
@@ -28,6 +38,17 @@ namespace Grid
             {
                 CheckVerticalCells(edgePosition);
             }
+        }
+
+        public void DestroyCells()
+        {
+            foreach (var cellKey in _destroyCells)
+            {
+                _occupiedCellPool.Pool.Release(_occupiedCells[cellKey]);
+                _occupiedCells.Remove(cellKey);
+            }
+
+            _destroyCells.Clear();
         }
 
         private Vector3Int GetNeighborPosition(Vector3 edgePosition, Vector3 direction)
@@ -59,14 +80,14 @@ namespace Grid
                 && IsNeighborOccupied(rightDownNeighbor)
                )
             {
-                InstantiateCell(edgePosition + _cellSize * 0.5f * Vector3.right);
+                SpawnCell(edgePosition + _cellSize * 0.5f * Vector3.right);
             }
 
             if (IsNeighborOccupied(leftNeighbor)
                 && IsNeighborOccupied(leftUpNeighbor)
                 && IsNeighborOccupied(leftDownNeighbor))
             {
-                InstantiateCell(edgePosition + _cellSize * 0.5f * Vector3.left);
+                SpawnCell(edgePosition + _cellSize * 0.5f * Vector3.left);
             }
         }
 
@@ -84,22 +105,86 @@ namespace Grid
                 && IsNeighborOccupied(upLeftNeighbor)
                )
             {
-                InstantiateCell(edgePosition + _cellSize * 0.5f * Vector3.up);
+                SpawnCell(edgePosition + _cellSize * 0.5f * Vector3.up);
             }
 
             if (IsNeighborOccupied(downNeighbor)
                 && IsNeighborOccupied(downRightNeighbor)
                 && IsNeighborOccupied(downLeftNeighbor))
             {
-                InstantiateCell(edgePosition + _cellSize * 0.5f * Vector3.down);
+                SpawnCell(edgePosition + _cellSize * 0.5f * Vector3.down);
             }
         }
 
-        private void InstantiateCell(Vector3 position)
+        private void SpawnCell(Vector3 position)
         {
             var go = _occupiedCellPool.Pool.Get();
             go.transform.position = position;
-            go.transform.DOScale(20f, .15f);
+            go.transform.DOScale(_cellScale, _cellScaleTimeInSeconds);
+            _occupiedCells.TryAdd(Vector3Int.FloorToInt(position), go);
+            CheckFullRowColumn(Vector3Int.FloorToInt(position));
+        }
+
+        private void CheckFullRowColumn(Vector3Int lastCellPosition)
+        {
+            CheckFullRow(lastCellPosition.x);
+            CheckFullColumn(lastCellPosition.y);
+        }
+
+        private void CheckFullRow(int row)
+        {
+            if (IsRowFull(row))
+            {
+                AddRowCellsToDestroyList(row);
+            }
+        }
+
+        private void CheckFullColumn(int column)
+        {
+            if (IsColumnFull(column))
+            {
+                AddColumnCellsToDestroyList(column);
+            }
+        }
+
+        private bool IsRowFull(int row)
+        {
+            return CountOccupiedRowCells(row) == _width;
+        }
+
+        private bool IsColumnFull(int column)
+        {
+            return CountOccupiedColumnCells(column) == _height;
+        }
+
+        private int CountOccupiedRowCells(int row)
+        {
+            return _occupiedCells.Keys.Count(pos => pos.x == row);
+        }
+
+        private int CountOccupiedColumnCells(int column)
+        {
+            return _occupiedCells.Keys.Count(pos => pos.y == column);
+        }
+
+        private void AddRowCellsToDestroyList(int row)
+        {
+            var cellsInRow = _occupiedCells.Where(kvp => kvp.Key.x == row);
+            AddCellsToDestroyList(cellsInRow);
+        }
+
+        private void AddColumnCellsToDestroyList(int column)
+        {
+            var cellsInColumn = _occupiedCells.Where(kvp => kvp.Key.y == column);
+            AddCellsToDestroyList(cellsInColumn);
+        }
+
+        private void AddCellsToDestroyList(IEnumerable<KeyValuePair<Vector3Int, GameObject>> cells)
+        {
+            foreach (var kvp in cells)
+            {
+                _destroyCells.Add(kvp.Key);
+            }
         }
     }
 }
