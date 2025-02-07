@@ -8,15 +8,15 @@ namespace Grid
 {
     public class CellChecker
     {
+        private readonly int _width;
+        private readonly int _height;
         private readonly float _cellSize;
-        private Dictionary<Vector3Int, Edge> _edgeMap;
-        private readonly OccupiedCellPool _occupiedCellPool;
-        private readonly Dictionary<Vector3Int, GameObject> _occupiedCells = new();
         private readonly float _cellScale = 20f;
         private readonly float _cellScaleTimeInSeconds = .15f;
+        private readonly OccupiedCellPool _occupiedCellPool;
+        private readonly Dictionary<Vector3Int, GameObject> _occupiedCells = new();
+        private readonly Dictionary<Vector3Int, Edge> _edgeMap;
         private HashSet<Vector3Int> _destroyCells = new();
-        private int _width;
-        private int _height;
 
         public CellChecker(float cellSize, int width, int height, Dictionary<Vector3Int, Edge> edgeMap,
             OccupiedCellPool pool)
@@ -40,23 +40,71 @@ namespace Grid
             }
         }
 
-        public void DestroyCells()
+        public List<Vector3> DestroyCells()
         {
-            foreach (var cellKey in _destroyCells)
-            {
-                _occupiedCellPool.Pool.Release(_occupiedCells[cellKey]);
-                _occupiedCells.Remove(cellKey);
-            }
+            var cellCenters = GetCellCenters();
+            var edgeClearList = GetEdgeClearList(cellCenters);
 
             _destroyCells.Clear();
+            return edgeClearList;
         }
 
-        private Vector3Int GetNeighborPosition(Vector3 edgePosition, Vector3 direction)
+        private List<Vector3> GetCellCenters()
+        {
+            var cellCenters = new List<Vector3>();
+
+            foreach (var cellKey in _destroyCells)
+            {
+                cellCenters.Add(_occupiedCells[cellKey].transform.position);
+                ReleaseCellToPool(cellKey);
+            }
+
+            return cellCenters;
+        }
+
+        private void ReleaseCellToPool(Vector3Int cellKey)
+        {
+            _occupiedCellPool.Pool.Release(_occupiedCells[cellKey]);
+            _occupiedCells.Remove(cellKey);
+        }
+
+        private List<Vector3> GetEdgeClearList(List<Vector3> cellCenters)
+        {
+            var edgeClearList = new List<Vector3>();
+
+            foreach (var cellCenter in cellCenters)
+            {
+                CheckAndAddEdgePosition(cellCenter, Vector3.up, edgeClearList);
+                CheckAndAddEdgePosition(cellCenter, Vector3.down, edgeClearList);
+                CheckAndAddEdgePosition(cellCenter, Vector3.left, edgeClearList);
+                CheckAndAddEdgePosition(cellCenter, Vector3.right, edgeClearList);
+            }
+
+            return edgeClearList;
+        }
+
+        private void CheckAndAddEdgePosition(Vector3 cellCenter, Vector3 direction, List<Vector3> edgeClearList)
+        {
+            var neighborPosition = cellCenter + direction * _cellSize;
+
+            if (!IsCellOccupied(neighborPosition))
+            {
+                var edgePosition = cellCenter + direction * _cellSize * 0.5f;
+                edgeClearList.Add(edgePosition);
+            }
+        }
+
+        private bool IsCellOccupied(Vector3 position)
+        {
+            return _occupiedCells.ContainsKey(Vector3Int.FloorToInt(position));
+        }
+
+        private Vector3Int GetNeighborEdgePosition(Vector3 edgePosition, Vector3 direction)
         {
             return Vector3Int.FloorToInt(edgePosition + direction * _cellSize);
         }
 
-        private bool IsNeighborOccupied(Vector3Int neighborPosition)
+        private bool IsNeighborEdgeOccupied(Vector3Int neighborPosition)
         {
             if (_edgeMap.TryGetValue(neighborPosition, out Edge neighborEdge))
             {
@@ -68,24 +116,24 @@ namespace Grid
 
         private void CheckHorizontalCells(Vector3 edgePosition)
         {
-            var rightNeighbor = GetNeighborPosition(edgePosition, Vector3.right);
-            var rightUpNeighbor = GetNeighborPosition(edgePosition, new Vector3(.5f, .5f, 0));
-            var rightDownNeighbor = GetNeighborPosition(edgePosition, new Vector3(.5f, -.5f, 0));
-            var leftNeighbor = GetNeighborPosition(edgePosition, Vector3.left);
-            var leftUpNeighbor = GetNeighborPosition(edgePosition, new Vector3(-.5f, .5f, 0));
-            var leftDownNeighbor = GetNeighborPosition(edgePosition, new Vector3(-.5f, -.5f, 0));
+            var rightNeighbor = GetNeighborEdgePosition(edgePosition, Vector3.right);
+            var rightUpNeighbor = GetNeighborEdgePosition(edgePosition, new Vector3(.5f, .5f, 0));
+            var rightDownNeighbor = GetNeighborEdgePosition(edgePosition, new Vector3(.5f, -.5f, 0));
+            var leftNeighbor = GetNeighborEdgePosition(edgePosition, Vector3.left);
+            var leftUpNeighbor = GetNeighborEdgePosition(edgePosition, new Vector3(-.5f, .5f, 0));
+            var leftDownNeighbor = GetNeighborEdgePosition(edgePosition, new Vector3(-.5f, -.5f, 0));
 
-            if (IsNeighborOccupied(rightNeighbor)
-                && IsNeighborOccupied(rightUpNeighbor)
-                && IsNeighborOccupied(rightDownNeighbor)
+            if (IsNeighborEdgeOccupied(rightNeighbor)
+                && IsNeighborEdgeOccupied(rightUpNeighbor)
+                && IsNeighborEdgeOccupied(rightDownNeighbor)
                )
             {
                 SpawnCell(edgePosition + _cellSize * 0.5f * Vector3.right);
             }
 
-            if (IsNeighborOccupied(leftNeighbor)
-                && IsNeighborOccupied(leftUpNeighbor)
-                && IsNeighborOccupied(leftDownNeighbor))
+            if (IsNeighborEdgeOccupied(leftNeighbor)
+                && IsNeighborEdgeOccupied(leftUpNeighbor)
+                && IsNeighborEdgeOccupied(leftDownNeighbor))
             {
                 SpawnCell(edgePosition + _cellSize * 0.5f * Vector3.left);
             }
@@ -93,24 +141,24 @@ namespace Grid
 
         private void CheckVerticalCells(Vector3 edgePosition)
         {
-            var upNeighbor = GetNeighborPosition(edgePosition, Vector3.up);
-            var upRightNeighbor = GetNeighborPosition(edgePosition, new Vector3(.5f, .5f, 0));
-            var upLeftNeighbor = GetNeighborPosition(edgePosition, new Vector3(-.5f, .5f, 0));
-            var downNeighbor = GetNeighborPosition(edgePosition, Vector3.down);
-            var downRightNeighbor = GetNeighborPosition(edgePosition, new Vector3(.5f, -.5f, 0));
-            var downLeftNeighbor = GetNeighborPosition(edgePosition, new Vector3(-.5f, -.5f, 0));
+            var upNeighbor = GetNeighborEdgePosition(edgePosition, Vector3.up);
+            var upRightNeighbor = GetNeighborEdgePosition(edgePosition, new Vector3(.5f, .5f, 0));
+            var upLeftNeighbor = GetNeighborEdgePosition(edgePosition, new Vector3(-.5f, .5f, 0));
+            var downNeighbor = GetNeighborEdgePosition(edgePosition, Vector3.down);
+            var downRightNeighbor = GetNeighborEdgePosition(edgePosition, new Vector3(.5f, -.5f, 0));
+            var downLeftNeighbor = GetNeighborEdgePosition(edgePosition, new Vector3(-.5f, -.5f, 0));
 
-            if (IsNeighborOccupied(upNeighbor)
-                && IsNeighborOccupied(upRightNeighbor)
-                && IsNeighborOccupied(upLeftNeighbor)
+            if (IsNeighborEdgeOccupied(upNeighbor)
+                && IsNeighborEdgeOccupied(upRightNeighbor)
+                && IsNeighborEdgeOccupied(upLeftNeighbor)
                )
             {
                 SpawnCell(edgePosition + _cellSize * 0.5f * Vector3.up);
             }
 
-            if (IsNeighborOccupied(downNeighbor)
-                && IsNeighborOccupied(downRightNeighbor)
-                && IsNeighborOccupied(downLeftNeighbor))
+            if (IsNeighborEdgeOccupied(downNeighbor)
+                && IsNeighborEdgeOccupied(downRightNeighbor)
+                && IsNeighborEdgeOccupied(downLeftNeighbor))
             {
                 SpawnCell(edgePosition + _cellSize * 0.5f * Vector3.down);
             }

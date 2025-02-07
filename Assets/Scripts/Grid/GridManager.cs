@@ -23,7 +23,6 @@ namespace Grid
         private readonly float _cellSize = 3f;
         private Camera _mainCamera;
         private Dictionary<Vector3Int, Edge> _edgeMap = new();
-        private Dictionary<Vector3Int, Node> _nodeMap = new();
         private HashSet<Vector3Int> _highlightedEdges = new();
         private CellChecker _cellChecker;
         private ShapePlacementManager _shapePlacementManager;
@@ -46,13 +45,44 @@ namespace Grid
 
         private void FindFullyOccupiedCells()
         {
-            foreach (var key in _highlightedEdges)
+            CheckHighlightedEdges();
+
+            var edgeClearList = _cellChecker.DestroyCells();
+
+            ResetEdges();
+
+            FixOccupiedNodes();
+
+            return;
+
+            void CheckHighlightedEdges()
             {
-                var edge = _edgeMap[key];
-                var edgePosition = edge.GetEdgePosition();
-                _cellChecker.CheckCell(edgePosition, edge.Orientation);
+                foreach (var key in _highlightedEdges)
+                {
+                    var edge = _edgeMap[key];
+                    var edgePosition = edge.GetEdgePosition();
+                    _cellChecker.CheckCell(edgePosition, edge.Orientation);
+                }
             }
-            _cellChecker.DestroyCells();
+
+            void ResetEdges()
+            {
+                foreach (var edgePosition in edgeClearList)
+                {
+                    var edgeKey = Vector3Int.FloorToInt(edgePosition);
+                    var edge = _edgeMap[edgeKey];
+                    edge.ResetEdge();
+                    _nodeManager.UnOccupyNode(edgePosition, edge.Orientation);
+                }
+            }
+
+            void FixOccupiedNodes()
+            {
+                foreach (var edgekvp in _edgeMap.Where(kvp => kvp.Value.IsEdgeOccupied()))
+                {
+                    _nodeManager.OccupyNode(edgekvp.Value.GetEdgePosition(), edgekvp.Value.Orientation);
+                }
+            }
         }
 
         public bool CanPlaceShape(List<PlaceableShapeEdgeData> placeableEdges)

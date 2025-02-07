@@ -8,7 +8,7 @@ namespace Grid
         private readonly int _width;
         private readonly int _height;
         private readonly Color _gridColor;
-        private readonly  Dictionary<Vector3Int, Node> _nodeMap = new();
+        private readonly Dictionary<Vector3Int, Node> _nodeMap = new();
         private readonly Node _nodePrefab;
         private readonly Transform _nodeParent;
         private readonly float _cellSize;
@@ -42,21 +42,31 @@ namespace Grid
 
         public void OccupyNode(Vector3 edgePosition, EdgeOrientation edgeOrientation)
         {
+            ChangeNodeState(edgePosition, edgeOrientation, Color.white);
+        }
+
+        public void UnOccupyNode(Vector3 edgePosition, EdgeOrientation edgeOrientation)
+        {
+            ChangeNodeState(edgePosition, edgeOrientation, _gridColor);
+        }
+
+        private void ChangeNodeState(Vector3 edgePosition, EdgeOrientation edgeOrientation, Color nodeColor)
+        {
             Vector3Int nodeOne = Vector3Int.zero, nodeTwo = Vector3Int.zero;
 
             if (edgeOrientation == EdgeOrientation.Vertical)
             {
-                nodeOne = CalculateNodePosition(edgePosition , .5f * Vector3.up);
-                nodeTwo = CalculateNodePosition(edgePosition , .5f * Vector3.down);
+                nodeOne = CalculateNodePosition(edgePosition, .5f * Vector3.up);
+                nodeTwo = CalculateNodePosition(edgePosition, .5f * Vector3.down);
             }
             else
             {
-                nodeOne = CalculateNodePosition(edgePosition , .5f * Vector3.right);
-                nodeTwo = CalculateNodePosition(edgePosition , .5f * Vector3.left);
+                nodeOne = CalculateNodePosition(edgePosition, .5f * Vector3.right);
+                nodeTwo = CalculateNodePosition(edgePosition, .5f * Vector3.left);
             }
 
-            _nodeMap[nodeOne].SetSpriteColor(Color.white);
-            _nodeMap[nodeTwo].SetSpriteColor(Color.white);
+            _nodeMap[nodeOne].SetSpriteColor(nodeColor);
+            _nodeMap[nodeTwo].SetSpriteColor(nodeColor);
         }
 
         private Vector3Int CalculateNodePosition(Vector3 basePosition, Vector3 direction)

@@ -1978,8 +1978,8 @@ MonoBehaviour:
   nodePrefab: {fileID: 2817106842164578680, guid: 0d696197a177934478ac7fd005caa1cd,
     type: 3}
   occupiedCellPool: {fileID: 496505186}
-  width: 5
-  height: 5
+  width: 3
+  height: 3
   gridColor: {r: 0.2509804, g: 0.21176472, b: 0.5882353, a: 1}
 --- !u!4 &1368156152
 Transform:

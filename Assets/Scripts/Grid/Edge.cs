@@ -10,9 +10,11 @@ namespace Grid
         private bool _edgeIsOccupied;
         private Vector3 _edgePosition;
         private Vector3Int _edgePositionInt;
+        private Color _edgeColor;
 
         public void InitializeEdge(Color color, EdgeOrientation edgeOrientation)
         {
+            _edgeColor = color;
             spriteRenderer.color = color;
             _edgeOrientation = edgeOrientation;
             _edgePosition = spriteRenderer.transform.position;
@@ -34,6 +36,12 @@ namespace Grid
             var color = blockSpriteRenderer.color;
             color.a = alpha;
             blockSpriteRenderer.color = color;
+        }
+        public void ResetEdge()
+        {
+            SetEdgeIsOccupied(false);
+            ShowHighlight(false);
+            ChangeHighlightAlpha(.5f);
         }
     }
 }
